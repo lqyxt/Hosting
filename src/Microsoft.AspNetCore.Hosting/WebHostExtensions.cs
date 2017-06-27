@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -52,6 +51,60 @@ namespace Microsoft.AspNetCore.Hosting
         public static Task StopAsync(this IWebHost host, TimeSpan timeout)
         {
             return host.StopAsync(new CancellationTokenSource(timeout).Token);
+        }
+
+        public static void WaitForShutdown(this IWebHost host)
+        {
+            host.WaitForShutdownAsync().GetAwaiter().GetResult();
+        }
+
+        public static void WaitForShutdown(this IWebHost host, CancellationToken token)
+        {
+            host.WaitForShutdownAsync(token).GetAwaiter().GetResult();
+        }
+
+        public static Task WaitForShutdownAsync(this IWebHost host)
+        {
+            return host.WaitForShutdownAsync(CancellationToken.None);
+        }
+
+        public static async Task WaitForShutdownAsync(this IWebHost host, CancellationToken token)
+        {
+            var applicationLifetime = host.Services.GetService<IApplicationLifetime>();
+            var done = new ManualResetEventSlim(false);
+
+            Action shutdown = () =>
+            {
+                applicationLifetime.StopApplication();
+                done.Wait();
+            };
+
+            // Trigger graceful shutdown on process exit
+            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => shutdown();
+
+            // Trigger graceful shutdown on CancelKeyPress event
+            Console.CancelKeyPress += (sender, eventArgs) =>
+            {
+                shutdown();
+                // Don't terminate the process immediately, wait for the Main thread to exit gracefully.
+                eventArgs.Cancel = true;
+            };
+
+            // Trigger graceful shutdown when the given cancellation token is cancelled
+            token.Register(state => ((IApplicationLifetime)state).StopApplication(), applicationLifetime);
+
+            var waitForStop = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            applicationLifetime.ApplicationStopping.Register(obj =>
+            {
+                var tcs = (TaskCompletionSource<object>)obj;
+                tcs.TrySetResult(null);
+            }, waitForStop);
+
+            await waitForStop.Task;
+
+            // WebHost will use its default ShutdownTimeout if none is specified.
+            await host.StopAsync();
+            done.Set();
         }
 
         /// <summary>
