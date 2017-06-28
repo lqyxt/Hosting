@@ -188,7 +188,7 @@ namespace Microsoft.AspNetCore.Hosting
 
         private static void AttachCtrlCSIGTERMShutdown(CancellationTokenSource cts, ManualResetEventSlim resetEvent, string shutdownMessage)
         {
-            Action shutdown = () =>
+            void Shutdown()
             {
                 if (!cts.IsCancellationRequested)
                 {
@@ -207,10 +207,10 @@ namespace Microsoft.AspNetCore.Hosting
                 resetEvent.Wait();
             };
 
-            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => shutdown();
+            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => Shutdown();
             Console.CancelKeyPress += (sender, eventArgs) =>
             {
-                shutdown();
+                Shutdown();
                 // Don't terminate the process immediately, wait for the Main thread to exit gracefully.
                 eventArgs.Cancel = true;
             };
