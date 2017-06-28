@@ -53,21 +53,39 @@ namespace Microsoft.AspNetCore.Hosting
             return host.StopAsync(new CancellationTokenSource(timeout).Token);
         }
 
+        /// <summary>
+        /// Block the calling thread until shutdown is triggered via Ctrl+C or SIGTERM.
+        /// </summary>
+        /// <param name="host">The running <see cref="IWebHost"/>.</param>
         public static void WaitForShutdown(this IWebHost host)
         {
             host.WaitForShutdownAsync().GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Block the calling thread until shutdown is triggered via the given token, Ctrl+C or SIGTERM.
+        /// </summary>
+        /// <param name="host">The running <see cref="IWebHost"/>.</param>
+        /// <param name="token">The token to trigger shutdown.</param>
         public static void WaitForShutdown(this IWebHost host, CancellationToken token)
         {
             host.WaitForShutdownAsync(token).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// Returns a Task that completes when shutdown is triggered via Ctrl+C or SIGTERM.
+        /// </summary>
+        /// <param name="host">The running <see cref="IWebHost"/>.</param>
         public static Task WaitForShutdownAsync(this IWebHost host)
         {
             return host.WaitForShutdownAsync(CancellationToken.None);
         }
 
+        /// <summary>
+        /// Returns a Task that completes when shutdown is triggered via the given token, Ctrl+C or SIGTERM.
+        /// </summary>
+        /// <param name="host">The running <see cref="IWebHost"/>.</param>
+        /// <param name="token">The token to trigger shutdown.</param>
         public static async Task WaitForShutdownAsync(this IWebHost host, CancellationToken token)
         {
             var applicationLifetime = host.Services.GetService<IApplicationLifetime>();
@@ -156,7 +174,7 @@ namespace Microsoft.AspNetCore.Hosting
         }
 
         /// <summary>
-        /// Runs a web application and and returns a Task that only completes when the token is triggered or shutdown is triggered.
+        /// Runs a web application and returns a Task that only completes when the token is triggered or shutdown is triggered.
         /// </summary>
         /// <param name="host">The <see cref="IWebHost"/> to run.</param>
         /// <param name="token">The token to trigger shutdown.</param>
