@@ -88,41 +88,14 @@ namespace Microsoft.AspNetCore.Hosting
         /// <param name="token">The token to trigger shutdown.</param>
         public static async Task WaitForShutdownAsync(this IWebHost host, CancellationToken token)
         {
-            var applicationLifetime = host.Services.GetService<IApplicationLifetime>();
             var done = new ManualResetEventSlim(false);
-
-            Action shutdown = () =>
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
-                applicationLifetime.StopApplication();
-                done.Wait();
-            };
+                AttachCtrlCSIGTERMShutdown(cts, done, shutdownMessage: string.Empty);
 
-            // Trigger graceful shutdown on process exit
-            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => shutdown();
-
-            // Trigger graceful shutdown on CancelKeyPress event
-            Console.CancelKeyPress += (sender, eventArgs) =>
-            {
-                shutdown();
-                // Don't terminate the process immediately, wait for the Main thread to exit gracefully.
-                eventArgs.Cancel = true;
-            };
-
-            // Trigger graceful shutdown when the given cancellation token is cancelled
-            token.Register(state => ((IApplicationLifetime)state).StopApplication(), applicationLifetime);
-
-            var waitForStop = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            applicationLifetime.ApplicationStopping.Register(obj =>
-            {
-                var tcs = (TaskCompletionSource<object>)obj;
-                tcs.TrySetResult(null);
-            }, waitForStop);
-
-            await waitForStop.Task;
-
-            // WebHost will use its default ShutdownTimeout if none is specified.
-            await host.StopAsync();
-            done.Set();
+                await host.WaitForTokenShutdown(cts.Token);
+                done.Set();
+            }
         }
 
         /// <summary>
@@ -143,30 +116,7 @@ namespace Microsoft.AspNetCore.Hosting
             var done = new ManualResetEventSlim(false);
             using (var cts = new CancellationTokenSource())
             {
-                Action shutdown = () =>
-                {
-                    if (!cts.IsCancellationRequested)
-                    {
-                        Console.WriteLine("Application is shutting down...");
-                        try
-                        {
-                            cts.Cancel();
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                        }
-                    }
-
-                    done.Wait();
-                };
-
-                AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => shutdown();
-                Console.CancelKeyPress += (sender, eventArgs) =>
-                {
-                    shutdown();
-                    // Don't terminate the process immediately, wait for the Main thread to exit gracefully.
-                    eventArgs.Cancel = true;
-                };
+                AttachCtrlCSIGTERMShutdown(cts, done, shutdownMessage: "Application is shutting down...");
 
                 await host.RunAsync(cts.Token, "Application started. Press Ctrl+C to shut down.");
                 done.Set();
@@ -209,24 +159,61 @@ namespace Microsoft.AspNetCore.Hosting
                     Console.WriteLine(shutdownMessage);
                 }
 
-                token.Register(state =>
-                {
-                    ((IApplicationLifetime)state).StopApplication();
-                },
-                applicationLifetime);
-
-                var waitForStop = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-                applicationLifetime.ApplicationStopping.Register(obj =>
-                {
-                    var tcs = (TaskCompletionSource<object>)obj;
-                    tcs.TrySetResult(null);
-                }, waitForStop);
-
-                await waitForStop.Task;
-
-                // WebHost will use its default ShutdownTimeout if none is specified.
-                await host.StopAsync();
+                await host.WaitForShutdownAsync(token);
             }
+        }
+
+        private static async Task WaitForTokenShutdown(this IWebHost host, CancellationToken token)
+        {
+            var applicationLifetime = host.Services.GetService<IApplicationLifetime>();
+
+            token.Register(state =>
+            {
+                ((IApplicationLifetime)state).StopApplication();
+            },
+            applicationLifetime);
+
+            var waitForStop = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+            applicationLifetime.ApplicationStopping.Register(obj =>
+            {
+                var tcs = (TaskCompletionSource<object>)obj;
+                tcs.TrySetResult(null);
+            }, waitForStop);
+
+            await waitForStop.Task;
+
+            // WebHost will use its default ShutdownTimeout if none is specified.
+            await host.StopAsync();
+        }
+
+        private static void AttachCtrlCSIGTERMShutdown(CancellationTokenSource cts, ManualResetEventSlim resetEvent, string shutdownMessage)
+        {
+            Action shutdown = () =>
+            {
+                if (!cts.IsCancellationRequested)
+                {
+                    if (!string.IsNullOrEmpty(shutdownMessage))
+                    {
+                        Console.WriteLine(shutdownMessage);
+                    }
+                    try
+                    {
+                        cts.Cancel();
+                    }
+                    catch (ObjectDisposedException) { }
+                }
+
+                // Wait on the given reset event
+                resetEvent.Wait();
+            };
+
+            AppDomain.CurrentDomain.ProcessExit += (sender, eventArgs) => shutdown();
+            Console.CancelKeyPress += (sender, eventArgs) =>
+            {
+                shutdown();
+                // Don't terminate the process immediately, wait for the Main thread to exit gracefully.
+                eventArgs.Cancel = true;
+            };
         }
     }
 }

@@ -41,7 +41,7 @@ namespace Microsoft.AspNetCore.Hosting.FunctionalTests
                     EnvironmentName = "Shutdown",
                     TargetFramework = "netcoreapp2.0",
                     ApplicationType = ApplicationType.Portable,
-                    PublishApplicationBeforeDeployment = true,
+                    PublishApplicationBeforeDeployment = true
                 };
 
                 deploymentParameters.EnvironmentVariables.Add(new KeyValuePair<string, string>("ASPNETCORE_STARTMECHANIC", "Run"));
@@ -92,7 +92,7 @@ namespace Microsoft.AspNetCore.Hosting.FunctionalTests
                     EnvironmentName = "Shutdown",
                     TargetFramework = "netcoreapp2.0",
                     ApplicationType = ApplicationType.Portable,
-                    PublishApplicationBeforeDeployment = true,
+                    PublishApplicationBeforeDeployment = true
                 };
 
                 deploymentParameters.EnvironmentVariables.Add(new KeyValuePair<string, string>("ASPNETCORE_STARTMECHANIC", "WaitForShutdown"));
