@@ -91,7 +91,7 @@ namespace Microsoft.AspNetCore.Hosting
             var done = new ManualResetEventSlim(false);
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
-                AttachCtrlCSIGTERMShutdown(cts, done, shutdownMessage: string.Empty);
+                AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: string.Empty);
 
                 await host.WaitForTokenShutdown(cts.Token);
                 done.Set();
@@ -116,7 +116,7 @@ namespace Microsoft.AspNetCore.Hosting
             var done = new ManualResetEventSlim(false);
             using (var cts = new CancellationTokenSource())
             {
-                AttachCtrlCSIGTERMShutdown(cts, done, shutdownMessage: "Application is shutting down...");
+                AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: "Application is shutting down...");
 
                 await host.RunAsync(cts.Token, "Application started. Press Ctrl+C to shut down.");
                 done.Set();
@@ -186,7 +186,7 @@ namespace Microsoft.AspNetCore.Hosting
             await host.StopAsync();
         }
 
-        private static void AttachCtrlCSIGTERMShutdown(CancellationTokenSource cts, ManualResetEventSlim resetEvent, string shutdownMessage)
+        private static void AttachCtrlcSigtermShutdown(CancellationTokenSource cts, ManualResetEventSlim resetEvent, string shutdownMessage)
         {
             void Shutdown()
             {
