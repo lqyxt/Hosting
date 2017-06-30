@@ -83,7 +83,7 @@ namespace Microsoft.AspNetCore.Hosting
             {
                 AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: string.Empty);
 
-                await host.WaitForTokenShutdown(cts.Token);
+                await host.WaitForTokenShutdownAsync(cts.Token);
                 done.Set();
             }
         }
@@ -149,11 +149,11 @@ namespace Microsoft.AspNetCore.Hosting
                     Console.WriteLine(shutdownMessage);
                 }
 
-                await host.WaitForShutdownAsync(token);
+                await host.WaitForTokenShutdownAsync(token);
             }
         }
 
-        private static async Task WaitForTokenShutdown(this IWebHost host, CancellationToken token)
+        private static async Task WaitForTokenShutdownAsync(this IWebHost host, CancellationToken token)
         {
             var applicationLifetime = host.Services.GetService<IApplicationLifetime>();
 
