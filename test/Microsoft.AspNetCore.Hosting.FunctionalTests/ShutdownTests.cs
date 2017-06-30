@@ -50,9 +50,6 @@ namespace Microsoft.AspNetCore.Hosting.FunctionalTests
                 {
                     await deployer.DeployAsync();
 
-                    // Wait for application to start
-                    await Task.Delay(1000);
-
                     string output = string.Empty;
                     deployer.HostProcess.OutputDataReceived += (sender, args) => output += args.Data + '\n';
 
@@ -100,9 +97,6 @@ namespace Microsoft.AspNetCore.Hosting.FunctionalTests
                 using (var deployer = new SelfHostDeployer(deploymentParameters, loggerFactory))
                 {
                     await deployer.DeployAsync();
-
-                    // Wait for application to start
-                    await Task.Delay(1000);
 
                     string output = string.Empty;
                     deployer.HostProcess.OutputDataReceived += (sender, args) => output += args.Data + '\n';
