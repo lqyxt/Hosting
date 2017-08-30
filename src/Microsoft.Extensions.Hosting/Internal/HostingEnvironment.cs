@@ -4,7 +4,7 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.FileProviders;
 
-namespace Microsoft.Extensions.Hosting
+namespace Microsoft.Extensions.Hosting.Internal
 {
     internal class HostingEnvironment : IHostingEnvironment
     {

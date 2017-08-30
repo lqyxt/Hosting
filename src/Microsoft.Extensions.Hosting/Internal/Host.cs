@@ -9,35 +9,41 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Microsoft.Extensions.Hosting
+namespace Microsoft.Extensions.Hosting.Internal
 {
     internal class Host : IHost
     {
         private ILogger<Host> _logger;
+        private IHostLifetime _hostLifetime;
+        private ApplicationLifetime _applicationLifetime;
         private IEnumerable<IHostedService> _hostedServices;
 
         internal Host(IServiceProvider services)
         {
             Services = services ?? throw new ArgumentNullException(nameof(services));
+            _applicationLifetime = Services.GetRequiredService<IApplicationLifetime>() as ApplicationLifetime;
+            _logger = Services.GetRequiredService<ILogger<Host>>();
+            _hostLifetime = Services.GetService<IHostLifetime>();
         }
 
         public IServiceProvider Services { get; }
 
         public async Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
-            _logger = Services.GetRequiredService<ILogger<Host>>();
             // _logger.Starting();
             
-            // _applicationLifetime = _applicationServices.GetRequiredService<IApplicationLifetime>() as ApplicationLifetime;
-
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
 
+            var delayStart = new TaskCompletionSource<object>();
+            _hostLifetime?.OnStarted(_ => delayStart.TrySetResult(null), null);
+            await delayStart.Task; // TODO: Cancelation
+
             _hostedServices = Services.GetService<IEnumerable<IHostedService>>();
 
-            // TODO: Catch exceptions and stop started services? Or just rely on Dispose for that?
+            // TODO: Try/Catch block to stop started services? Or just rely on Dispose for that?
             foreach (var hostedService in _hostedServices)
             {
                 // Fire IHostedService.Start
@@ -45,19 +51,24 @@ namespace Microsoft.Extensions.Hosting
             }
 
             // Fire IApplicationLifetime.Started
-            // _applicationLifetime?.NotifyStarted();
+            _applicationLifetime?.NotifyStarted();
 
             // _logger.Started();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
+            // TODO: Log stopping
+
             if (_hostedServices == null)
             {
                 // Not started. InvalidOperationException?
                 return;
             }
+            
+            _applicationLifetime?.StopApplication();
 
+            // TODO: Default timeout?
             IList<Exception> exceptions = new List<Exception>();
             foreach (var hostedService in _hostedServices.Reverse())
             {
@@ -70,6 +81,12 @@ namespace Microsoft.Extensions.Hosting
                     exceptions.Add(ex);
                 }
             }
+
+            // Fire IApplicationLifetime.Stopped
+            _applicationLifetime?.NotifyStopped();
+
+            // TODO: Log Stopped, errors
+
             if (exceptions.Count > 0)
             {
                 throw new AggregateException("One or more hosted services failed to stop.", exceptions);
@@ -87,10 +104,7 @@ namespace Microsoft.Extensions.Hosting
             }
             finally
             {
-                if (Services is IDisposable disposableServices)
-                {
-                    disposableServices.Dispose();
-                }
+                (Services as IDisposable)?.Dispose();
             }
         }
     }

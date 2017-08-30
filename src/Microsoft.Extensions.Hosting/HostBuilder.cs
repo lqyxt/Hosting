@@ -7,6 +7,7 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting.Internal;
 
 namespace Microsoft.Extensions.Hosting
 {
@@ -121,6 +122,8 @@ namespace Microsoft.Extensions.Hosting
             services.AddSingleton(_hostingEnvironment);
             services.AddSingleton(_hostBuilderContext);
             services.AddSingleton(_appConfiguration);
+            services.AddSingleton<IApplicationLifetime, ApplicationLifetime>();
+
             // TODO: IApplicationLifetime
             services.AddOptions();
             services.AddLogging();
