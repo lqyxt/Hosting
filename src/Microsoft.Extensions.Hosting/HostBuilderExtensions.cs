@@ -19,5 +19,10 @@ namespace Microsoft.Extensions.Hosting
         {
             return hostBuilder.ConfigureServices((context, collection) => collection.AddLogging(builder => configureLogging(context, builder)));
         }
+
+        public static IHostBuilder UseConsoleLifetime(this IHostBuilder hostBuilder)
+        {
+            return hostBuilder.ConfigureServices((context, collection) => collection.AddSingleton<IHostLifetime, ConsoleLifetime>());
+        }
     }
 }

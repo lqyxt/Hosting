@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -7,7 +8,7 @@ namespace GenericHostSample
 {
     public class ProgramFullControl
     {
-        static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var host = new HostBuilder()
                 .UseServiceProviderFactory<MyContainer>(new MyContainerFactory())
@@ -29,13 +30,22 @@ namespace GenericHostSample
 
             var s = host.Services;
 
-            host.StartAsync().GetAwaiter().GetResult();
+            using (host)
+            {
+                Console.WriteLine("Starting!");
 
-            Console.WriteLine("Started!");
+                await host.StartAsync();
 
-            host.StopAsync().GetAwaiter().GetResult();
+                Console.WriteLine("Started!");
 
-            Console.WriteLine("Stopped!");
+                Console.ReadKey();
+
+                Console.WriteLine("Stopping!");
+
+                await host.StopAsync();
+
+                Console.WriteLine("Stopped!");
+            }
         }
     }
 }

@@ -30,7 +30,7 @@ namespace Microsoft.Extensions.Hosting.Internal
 
         public async Task StartAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
-            // _logger.Starting();
+            _logger.Starting();
             
             if (cancellationToken.IsCancellationRequested)
             {
@@ -38,7 +38,9 @@ namespace Microsoft.Extensions.Hosting.Internal
             }
 
             var delayStart = new TaskCompletionSource<object>();
-            _hostLifetime?.OnStarted(_ => delayStart.TrySetResult(null), null);
+            _hostLifetime?.OnStarted(obj => ((TaskCompletionSource<object>)obj).TrySetResult(null), delayStart);
+            _hostLifetime?.OnStopping(obj => (obj as IApplicationLifetime)?.StopApplication(), _applicationLifetime);
+
             await delayStart.Task; // TODO: Cancelation
 
             _hostedServices = Services.GetService<IEnumerable<IHostedService>>();
@@ -53,12 +55,12 @@ namespace Microsoft.Extensions.Hosting.Internal
             // Fire IApplicationLifetime.Started
             _applicationLifetime?.NotifyStarted();
 
-            // _logger.Started();
+            _logger.Started();
         }
 
         public async Task StopAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
-            // TODO: Log stopping
+            _logger.Stopping();
 
             if (_hostedServices == null)
             {
@@ -66,6 +68,7 @@ namespace Microsoft.Extensions.Hosting.Internal
                 return;
             }
             
+            // Trigger IApplicationLifetime.ApplicationStopping
             _applicationLifetime?.StopApplication();
 
             // TODO: Default timeout?
@@ -84,28 +87,21 @@ namespace Microsoft.Extensions.Hosting.Internal
 
             // Fire IApplicationLifetime.Stopped
             _applicationLifetime?.NotifyStopped();
-
-            // TODO: Log Stopped, errors
+            await _hostLifetime?.StopAsync();
 
             if (exceptions.Count > 0)
             {
-                throw new AggregateException("One or more hosted services failed to stop.", exceptions);
+                var ex = new AggregateException("One or more hosted services failed to stop.", exceptions);
+                _logger.StoppedWithException(ex);
+                throw ex;
             }
+
+            _logger.Stopped();
         }
 
         public void Dispose()
         {
-            try
-            {
-                // TODO: Should we bother? or should IHostedService just be IDisposable?
-                var cts = new CancellationTokenSource();
-                cts.Cancel();
-                StopAsync(cts.Token).GetAwaiter().GetResult();
-            }
-            finally
-            {
-                (Services as IDisposable)?.Dispose();
-            }
+            (Services as IDisposable)?.Dispose();
         }
     }
 }

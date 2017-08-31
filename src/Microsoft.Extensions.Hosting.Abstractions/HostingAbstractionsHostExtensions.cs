@@ -46,7 +46,7 @@ namespace Microsoft.Extensions.Hosting
             var done = new ManualResetEventSlim(false);
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
-                AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: string.Empty);
+                // AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: string.Empty);
 
                 await host.WaitForTokenShutdownAsync(cts.Token);
                 done.Set();
@@ -80,7 +80,7 @@ namespace Microsoft.Extensions.Hosting
             var done = new ManualResetEventSlim(false);
             using (var cts = new CancellationTokenSource())
             {
-                AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: "Application is shutting down...");
+                // AttachCtrlcSigtermShutdown(cts, done, shutdownMessage: "Application is shutting down...");
 
                 await host.RunAsync(cts.Token, "Application started. Press Ctrl+C to shut down.");
                 done.Set();
@@ -94,7 +94,6 @@ namespace Microsoft.Extensions.Hosting
                 await host.StartAsync(token);
 
                 var hostingEnvironment = host.Services.GetService<IHostingEnvironment>();
-                var applicationLifetime = host.Services.GetService<IApplicationLifetime>();
 
                 Console.WriteLine($"Hosting environment: {hostingEnvironment.EnvironmentName}");
                 Console.WriteLine($"Content root path: {hostingEnvironment.ContentRootPath}");
@@ -107,7 +106,7 @@ namespace Microsoft.Extensions.Hosting
                 await host.WaitForTokenShutdownAsync(token);
             }
         }
-
+        /*
         private static void AttachCtrlcSigtermShutdown(CancellationTokenSource cts, ManualResetEventSlim resetEvent, string shutdownMessage)
         {
             void Shutdown()
@@ -137,7 +136,7 @@ namespace Microsoft.Extensions.Hosting
                 eventArgs.Cancel = true;
             };
         }
-
+        */
         private static async Task WaitForTokenShutdownAsync(this IHost host, CancellationToken token)
         {
             var applicationLifetime = host.Services.GetService<IApplicationLifetime>();

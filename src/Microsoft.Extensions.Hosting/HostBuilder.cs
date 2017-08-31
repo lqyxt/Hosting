@@ -107,6 +107,7 @@ namespace Microsoft.Extensions.Hosting
         private void BuildAppConfiguration()
         {
             // TODO: Should we chain in the hosting config provider by default, or let them do it manually?
+            // Chained config: https://github.com/aspnet/Configuration/issues/630
             var configBuilder = new ConfigurationBuilder();
             foreach (var buildAction in _configureAppConfigActions)
             {
@@ -123,8 +124,6 @@ namespace Microsoft.Extensions.Hosting
             services.AddSingleton(_hostBuilderContext);
             services.AddSingleton(_appConfiguration);
             services.AddSingleton<IApplicationLifetime, ApplicationLifetime>();
-
-            // TODO: IApplicationLifetime
             services.AddOptions();
             services.AddLogging();
             
@@ -134,15 +133,20 @@ namespace Microsoft.Extensions.Hosting
             }
 
             // We can't invoke the factory directly because we don't know the genric type at compile time.
+            // TContainerBuilder IServiceProviderFactory<TContainerBuilder>.CreateBuilder(IServiceCollection)
             var createBuilderMethod = _serviceProviderFactory.GetType().GetMethod("CreateBuilder");
             var containerBuilder = createBuilderMethod.Invoke(_serviceProviderFactory, new[] { services });
 
             foreach (var containerAction in _configureContainerActions)
             {
+                // TODO: verify that the TContainerBuilder matches the same type from IServiceProviderFactory<TContainerBuilder>.
+                //       There's no compile time check for that because they're seperate methods.
+                // Action<HostBuilderContext, TContainerBuilder>
                 var invokeMethod = containerAction.GetType().GetMethod("Invoke");
                 invokeMethod.Invoke(containerAction, new[] { _hostBuilderContext, containerBuilder });
             }
 
+            // IServiceProvider IServiceProviderFactory<TContainerBuilder>.CreateServiceProvider(TContainerBuilder)
             var createServiceProviderMethod = _serviceProviderFactory.GetType().GetMethod("CreateServiceProvider");
             _appServices = (IServiceProvider)createServiceProviderMethod.Invoke(_serviceProviderFactory, new[] { containerBuilder });
 
